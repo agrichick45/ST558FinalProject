@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20211022</CreaDate><CreaTime>09405600</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.7\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20210811" Time="094902">CalculateField cb_2018_us_county_5m GEOID_1 "Int ( [GEOID]  )" VB #</Process></lineage></DataProperties></Esri></metadata>

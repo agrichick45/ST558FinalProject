@@ -35,8 +35,10 @@ pal <- colorNumeric(palette = "Reds", domain = dataMap$totMarkSlope, na.color = 
 
 popup <- paste0("<strong>", dataMap$NAME, "</strong><br /> 
             Total Market Value: $", dataMap$totMarkSlope, "<br />
-            Operations with Income > $500,000: ", dataMap$opgr500kSlope)
-
+            Operations with Income > $500,000: ", dataMap$opgr500kSlope,  "<br /> Farms > 2000 Acres: ",
+dataMap$slopelargeCropOp, "<br /> Animal Density: ", dataMap$Adens_Slope, "<br />
+            Percent of Sales > $500,000: ",
+dataMap$perMarkSlope)
 
 MapInfo <- tags$p(tags$style("<p {font-size:12px} />"),
             tags$b("Agricultural Intensification: Rate of Change (Slope)"))
@@ -45,12 +47,12 @@ dataMap %>% # Inputs data set
     leaflet(width = "100%") %>% # Interactive mapping package
     addProviderTiles(provider = "CartoDB.Positron") %>% # Changes base map
     setView(-98.483330, 38.712046, zoom = 4) %>% 
-  addPolygons(popup = ~ popup,
+    addPolygons(popup = ~ popup,
                 stroke = FALSE,
                 smoothFactor = 0,
                 fillOpacity = 0.7,
                 color = ~ pal(totMarkSlope)) %>%
-  addLegend("bottomright", 
+    addLegend("bottomright", 
               pal = pal, 
               values = ~ totMarkSlope,
               title = "Total Market Rate of Change",

@@ -1,0 +1,40 @@
+---
+title: "Mapping Displays"
+author: "Mandy Liesch"
+date: "12/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+## R Markdown
+```
+
+```{r}
+#Read in the Mapping Data
+
+```
+
+```{r}
+#Animal Space and Time Patterns (preprocessed in July 2021)
+#Read in the CSV file
+AST<-read.csv("AST.csv")
+
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

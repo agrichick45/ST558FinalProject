@@ -1,0 +1,97 @@
+---
+title: "Classification Trees"
+author: "Mandy Liesch"
+date: "12/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+library(rsample)
+library(rpart)	
+library(rpart.plot)
+```
+
+```{r}
+wholeData<-read.csv("mergedData.csv")
+wholeData$GEOID<-wholeData$ï..GEOID
+wholeData$ï..GEOID<-NULL
+
+wholeData$NCHS_URCS_2013<-as.factor(wholeData$NCHS_URCS_2013)
+wholeData$InitialCluster<-as.factor(wholeData$InitialCluster)
+wholeData$Megacluster<-as.factor(wholeData$Megacluster)
+
+trimData<-wholeData[5:47]
+trimData[is.na(trimData)]<-0
+
+
+
+```
+
+```{r}
+set.seed(10)
+
+index <- initial_split(trimData,
+                       prop = 0.8)
+train <- training(index)
+test <- testing(index)
+
+```
+
+```{r}
+library(tree)
+
+tree.1 <- rpart(PerCroplandGain~. -PerCroplandLoss, data=train, method='anova')
+
+prp(tree.1)
+
+prediction_model <- predict(tree.1,test,type='vector')
+
+MSE1 <- mean((prediction_model-test$PerCroplandGain)^2)
+
+printcp(tree.1)
+plotcp(tree.1)
+
+pruned_model <- prune.rpart(tree.1,cp=0.015551)
+
+prp(pruned_model)
+
+
+```
+
+```{r}
+control <- trainControl(method="repeatedcv", number=5, repeats=3, search="random")
+mtry <- sqrt(ncol(train))
+rf_random <- train(PerCroplandGain~. -PerCroplandLoss, data=train, method="rf", tuneLength=15, trControl=control)
+print(rf_random)
+plot(rf_random)
+mtry<-which.min(rf_random$results$RMSE)
+
+
+control <- trainControl(method="repeatedcv", number=5, repeats=3, search="grid")
+tunegrid <- expand.grid(.mtry=mtry)
+modellist <- list()
+for (ntree in c(500, 1000, 1500, 2000)) {
+fit <- train(PerCroplandGain~. -PerCroplandLoss, data=train, method="rf", tuneGrid=tunegrid, trControl=control, ntree=ntree)
+key <- toString(ntree)
+modellist[[key]] <- fit
+}
+
+results <- resamples(modellist)
+summary(results)
+```
+
+```{r}
+tree.trainRF<-randomForest(PerCroplandGain~. -PerCroplandLoss, data=train, ntree=500, mtry=mtry, importance=TRUE)
+tree.trainRF
+plot(tree.trainRF)
+yhat.rf<-predict(tree.trainRF, newdata = test)
+yhat.rf<-as.data.frame(yhat.rf)
+yhat_rf<-mean((yhat.rf$yhat.rf-test$PerCroplandGain)^2)
+RMSE_rfTrimmed<-sqrt(yhat_rf)
+
+

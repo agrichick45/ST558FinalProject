@@ -1,0 +1,45 @@
+---
+title: "heatmap"
+author: "Mandy Liesch"
+date: "12/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(plotly)
+library(shinyHeatmaply)
+library(Hmisc)
+library(corrplot)
+```
+
+```{r}
+wholeData<-read.csv("mergedData.csv")
+wholeData$GEOID<-wholeData$ï..GEOID
+wholeData$ï..GEOID<-NULL
+
+wholeData$NCHS_URCS_2013<-as.factor(wholeData$NCHS_URCS_2013)
+wholeData$InitialCluster<-as.factor(wholeData$InitialCluster)
+wholeData$Megacluster<-as.factor(wholeData$Megacluster)
+```
+
+```{r}
+table1<-wholeData %>%
+  group_by(Megacluster)%>%
+  summarise_at(vars(SlopeCropFail), list(name = mean))
+```
+
+
+```{r}
+data(wholeData)
+trimmedData<-wholeData[6:66]
+trimmedData[is.na(trimmedData)]<-0
+
+res <- cor(trimmedData)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45, tl.cex = 0.25)
+```

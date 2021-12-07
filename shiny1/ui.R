@@ -30,7 +30,8 @@ library(caret)
 library(rsample)
 library(rpart)	
 library(rpart.plot)
-
+library(png)
+library(summarytools)
 
 
 
@@ -155,34 +156,33 @@ shinyUI(navbarPage(
 #
 ###############################################################################
         
-            conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
-              h3("Select Parameters for Fit"
-                        ),
-              checkboxGroupInput("regTreeVars", 
-                        label = "Check at Least 5 Parameters for Entry in Regression Model",
-                        choices = names(mergedData)[-c(1:3)]
-                        ),
-              h3("Select Cross Validation Fit Options"),
-              "A Stratified Training Sample Set of 80% was prepared:",
-                                      
-              sliderInput("numFolds", 
-                  label = "Minimum of 2 Folds, Maximum of 10:",
-                  min = 2, max = 10, value = 5
-                                      ),
-              actionButton("regTreeVars", label = "Generate Model"),
-            ),       
-  
+conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
+                 h3("Select Parameters for Fit"
+                 ),
+                 checkboxGroupInput("regTreeVars", 
+                                    label = "Check at Least 5 Parameters for Entry in Regression Model",
+                                    choices = names(train.tree)[-c(1:2, 10)]
+                 ),
+                 h3("Select Cross Validation Fit Options"),
+                 "A Stratified Training Sample Set of 80% was prepared:",
+                 
+                 sliderInput("numFolds", 
+                             label = "Minimum of 2 Folds, Maximum of 10:",
+                             min = 2, max = 10, value = 5
+                 ),
+                 actionButton("runRegTree", label = "Generate Model"),
+),       
 ###############################################################################
 #
 # Random Forests Modelling
 #
 ###############################################################################
-            conditionalPanel(condition = "input.modelType == 'Random Forest'",
+conditionalPanel(condition = "input.modelType == 'Random Forest'",
                  h3("Select Parameters for Fit"
                  ),
-                 checkboxGroupInput("forestVars", 
+                 checkboxGroupInput("rfVars", 
                                     label = "Select at Least 5 Variables for Random Forests",
-                                    choices = names(mergedData)[-c(1:3)]
+                                    choices = names(train.data)[-c(1:2)]
                  ),
                  h3("Select Tree Fit Options"
                  ),
@@ -194,8 +194,8 @@ shinyUI(navbarPage(
                              label = "Minimum of 2 Folds, Maximum of 10:",
                              min = 2, max = 10, value = 5
                  ),
-                 actionButton("forestVars", label = "Generate Model")
-                ),
+                 actionButton("runForestRun", label = "Generate Model")
+),
   
 
 ###############################################################################
@@ -223,21 +223,21 @@ shinyUI(navbarPage(
 
             mainPanel(fluidPage(
                 conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
-                   htmlOutput("regressionTitle"),
-                   h4("Regression Tree Model Fit Summary:"),
-                   verbatimTextOutput("summaryMulti"),
-                   br(),
-                   h4("Test Model Fit Statistics:"),
-                   verbatimTextOutput("regFitStats")
-                    ),
+                  htmlOutput("regressTreeTitle"),
+                  h4("Regression Tree Model Fit Summary:"),
+                  verbatimTextOutput("tree.Summary"),
+                  br(),
+                  h4("Test Model Fit Statistics:"),
+                  verbatimTextOutput("tree.Fit.Stats")
+                ),
                 conditionalPanel(condition = "input.modelType == 'Random Forest'",
-                   htmlOutput("randomForestTitle"),
-                   h4("Random Forest Model Fit Summary:"),
-                   plotOutput("summaryRF"),
-                   br(),
-                   h4("Test Model Fit Statistics:"),
-                   verbatimTextOutput("RFFitStats")
-                    ),
+                                 htmlOutput("randomForestTitle"),
+                                 h4("Random Forest Model Fit Summary:"),
+                                 plotOutput("summary.RF"),
+                                 br(),
+                                 h4("Test Model Fit Statistics:"),
+                                 verbatimTextOutput("RFFitStats")
+                ),
                 conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
                    htmlOutput("stepTitle"),
                    h4("Stepwise Model Fit Summary:"),
@@ -255,13 +255,53 @@ shinyUI(navbarPage(
 #
 ###############################################################################
 
-        tabPanel(
-        # Add a title for the sub tab.
-        title = "Model Fitting",
-        mainPanel("This is the model Fitting panel")
-        # Allow the user to set a random seed between -1000 and 1000.
-        ),
-
+tabPanel(
+  # Add a title for the sub tab.
+  title = "Model Fitting",
+  sidebarPanel(
+    radioButtons("predictionModel", 
+                 label = "Choose Model:", 
+                 choices = c("Single Regression Tree",
+                             "Random Forest",
+                             "Stepwise Selection Regression"), 
+                 selected = character(0)
+    ),
+  ),
+  mainPanel(fluidPage(
+    
+    conditionalPanel(condition = "input.predictionModel == 'Single Regression Tree'",
+                     h4(strong("The Regression Tree Model tries to predict the Cropland Increase")
+                     ),
+                     htmlOutput("treeRegVariables"),
+                     br(),
+                     h4(strong("click the button below to get your prediction.")),
+                     actionButton("getTreePrediction", label = "Get Prediction"),
+                     htmlOutput("treePrediction")
+    ),
+    conditionalPanel(condition = "input.predictionModel == 'Random Forest'",
+                     h4(strong("The Random Forest Model predicts land use change "
+                     )),
+                     htmlOutput("forestPredVariables"),
+                     br(),
+                     h4(strong("click the button below to get your prediction.")
+                     ),
+                     actionButton("getRForestPrediction", label = "Get Prediction"),
+                     htmlOutput("RFPrediction")
+    ),
+    conditionalPanel(condition = "input.predictionModel == 'Stepwise Selection Regression'",
+                     h4(strong("The Stepwise Regression Model is used to predict land use change",
+                               "and intensity:")),
+                     htmlOutput("swVariables"),
+                     br(),
+                     h4(strong("click the button below to get your prediction.")
+                     ),
+                     actionButton("getStepPrediction", label = "Get Prediction"),
+                     htmlOutput("stepPrediction")
+    ),
+    
+  ),
+  ),
+),
     ),
 ###############################################################################
 #
@@ -271,11 +311,44 @@ shinyUI(navbarPage(
     tabPanel(
       # Add a title.
       title="Data",
+      # Create a side panel.
+      sidebarPanel(
+        # Create a filter for the states of interest.
+        selectInput(
+          inputId = "selectedStates",
+          label = "Filter by State(s)",
+          choices = unique(mergedData$State),
+          selected = unique(mergedData$State),
+          multiple = TRUE,
+          selectize = TRUE
+        ),
+        # Create a filter for the counties by initial intensity.
+        selectInput(
+          inputId = "initialIntense",
+          label = "Filter by 1997 Agricultural Intensity",
+          choices = c("Low", "Medium", "High"),
+          selected = c("Low", "Medium", "High"),
+          multiple = TRUE,
+          selectize = TRUE
+        ),
+        # Create a filter for the counties to display by winner.
+        selectInput(
+          inputId = "selectedIntense",
+          label = "Filter by Agricultural Intensification",
+          choices = c("Low", "Medium", "High"),
+          selected = c("Low", "Medium", "High"),
+          multiple = TRUE,
+          selectize = TRUE
+        ),
+        # Create a download button to download the data set.
+        sidebarPanel(downloadButton("downloadData", "Download")
+                     )
+      ),
       # Create a main panel for the About tab.
-      mainPanel("This is the Data Subset and Download Tab")
+      dataTableOutput(outputId = "tab")
      ) 
-  ))
+  )
 )
-
+)
 
 

@@ -47,7 +47,7 @@ library(tree)
 
 tree.1 <- rpart(PerCroplandGain~. -PerCroplandLoss, data=train, method='anova')
 
-prp(tree.1)
+prp(tree.1$finalModel)
 
 prediction_model <- predict(tree.1,test,type='vector')
 
@@ -94,4 +94,47 @@ yhat.rf<-as.data.frame(yhat.rf)
 yhat_rf<-mean((yhat.rf$yhat.rf-test$PerCroplandGain)^2)
 RMSE_rfTrimmed<-sqrt(yhat_rf)
 
+```
 
+
+
+
+```{r}
+
+#backwards
+newTrain<-train[-c(1:2)]
+train.control <- trainControl(method = "repeatedcv", number = 10)
+step.model <- train(PerCroplandGain~. -PerCroplandLoss, data = newTrain,
+                    method = "leapBackward", 
+                    tuneGrid = data.frame(nvmax = 1:5),
+                    trControl = train.control
+                 )
+bestnv<-step.model$bestTune$nvmax
+
+coef(step.model$finalModel, bestnv)
+
+
+#forward Selection
+newTrain<-train[-c(1:2)]
+train.control <- trainControl(method = "repeatedcv", number = 10)
+step.model <- train(PerCroplandGain~. -PerCroplandLoss, data = newTrain,
+                    method = "leapForward", 
+                    tuneGrid = data.frame(nvmax = 1:5),
+                    trControl = train.control
+                 )
+bestnv<-step.model$bestTune$nvmax
+
+coef(step.model$finalModel, bestnv)
+
+
+#stepwise Selection
+newTrain<-train[-c(1:2)]
+train.control <- trainControl(method = "repeatedcv", number = 10)
+step.model <- train(PerCroplandGain~. -PerCroplandLoss, data = newTrain,
+                    method = "leapSeq", 
+                    tuneGrid = data.frame(nvmax = 1:5),
+                    trControl = train.control
+                 )
+bestnv<-step.model$bestTune$nvmax
+
+coef(step.model$finalModel, bestnv)

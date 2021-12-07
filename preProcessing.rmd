@@ -45,9 +45,9 @@ test <- testing(index)
 ```{r}
 library(tree)
 
-tree.1 <- rpart(PerCroplandGain~. -PerCroplandLoss, data=train, method='anova')
+tree.1 <- rpart(PerCroplandGain~., data=train.tree, method='anova')
 
-prp(tree.1$finalModel)
+prp(tree.1)
 
 prediction_model <- predict(tree.1,test,type='vector')
 

@@ -32,7 +32,7 @@ library(rpart)
 library(rpart.plot)
 library(png)
 library(summarytools)
-
+library(rattle)
 
 
 ###############################################################################
@@ -226,7 +226,7 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                 conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
                   htmlOutput("regressTreeTitle"),
                   h4("Regression Tree Model Fit Summary:"),
-                  verbatimTextOutput("tree.Summary"),
+                  verbatimTextOutput("summary.Tree"),
                   br(),
                   h4("Test Model Fit Statistics:"),
                   verbatimTextOutput("tree.Fit.Stats")

@@ -140,21 +140,21 @@ trainRegTreeModel <- eventReactive(input$runRegTree, {
   vars <- unlist(input$regTreeVars)
   
   # Fit a Classification Tree Model using cross validation
-  
   train.control <- trainControl(method = "cv", number = input$numFolds)
-  tree.Fit <- train(PerCroplandGain ~ ., 
+  tree.Fit <- train(PerCroplandGain ~ .,
                     data = train.tree[,c(c("PerCroplandGain"), vars)],
                     method = 'rpart',
                     trControl = train.control,
-                    tuneGrid = expand.grid(cp = seq(0, 0.1, by = 0.001))
-                    )
+                    na.action = na.exclude)
+                    
+
   
   # Save the fitted model in a folder.
   saveRDS(tree.Fit, "./Models/reg-tree-model.rds")
   
-  # Output a plot of the Classification Tree
-  tree.Summary <- "tree.Fit <- readRDS('./Models/reg-tree-model.rds'); 
-                   rattle::fancyRpartPlot(tree.Fit$finalModel)"
+  # Output a plot of the Regression Tree
+  tree.Summary <- "rattle::fancyRpartPlot(tree.Fit$finalModel)" 
+                  
   
   tree.yhat <- predict(tree.Fit, newdata = test.tree)
   tree.Fit.Stats <- mean((tree.yhat-test.tree$PerCroplandGain)^2)
@@ -168,8 +168,8 @@ output$treeTitle <- renderUI({
   h5(strong("Regression Tree Model Complete."))
 })
 
-output$summary <- renderPlot({
-  eval(parse(text = trainRegTreeModel()$summary))
+output$summary.Tree <- renderPlot({
+  eval(parse(text=trainRegTreeModel()$summary))
 })
 
 output$tree.Fit.Stats <- renderPrint({

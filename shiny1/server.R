@@ -1,22 +1,9 @@
-library(dplyr)
-library(shiny)
-library(shinyWidgets)
-library(shinythemes)
-library(mapdeck)
-library(markdown)
-library(ggplot2)
-library(rjson)
-library(jsonlite)
-library(leaflet)
-library(RCurl)
-library(rgeos)
-library(maptools)
-library(leaflet)
-library(htmltools)
-library(shiny)
-library(plotly)
-library(shiny)
-library(tidyverse)
+###############################################################################
+#
+# Process and setup the environment.
+#
+###############################################################################
+
 
 countyData<-readShapeSpatial("countyshape.shp")
 agIntenSlope<-read.csv("agIntenSlope.csv")
@@ -26,6 +13,22 @@ agIntenSlope[is.na(agIntenSlope)]<-0
 
 mergedData<-read_csv("mergedData.csv")
 mergedData[is.na(mergedData)]<-0
+#Convert to Factors
+mergedData$NCHS_URCS_2013<-as.factor(mergedData$NCHS_URCS_2013)
+mergedData$InitialCluster<-as.factor(mergedData$InitialCluster)
+mergedData$Megacluster<-as.factor(mergedData$Megacluster)
+
+MapInfo <- tags$p(tags$style("<p {font-size:12px} />"),
+                  tags$b("Agricultural Intensification: Rate of Change (Slope)"))
+
+set.seed(10)
+trimData<-mergedData[5:47]
+trimData[is.na(trimData)]<-0
+index <- initial_split(trimData,
+                       prop = 0.8)
+train <- training(index)
+test <- testing(index)
+
 trimData<-mergedData[7:48]
 cmat<-cor(trimData)
 
@@ -46,6 +49,7 @@ popup <- paste0("<strong>", dataMap$NAME, "</strong><br />
                 dataMap$slopelargeCropOp, "<br /> Animal Density: ", dataMap$Adens_Slope, "<br />
             Percent of Sales > $500,000: ",
                 dataMap$perMarkSlope)
+
 
 
 server <- function(input,output, session){

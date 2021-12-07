@@ -138,3 +138,30 @@ step.model <- train(PerCroplandGain~. -PerCroplandLoss, data = newTrain,
 bestnv<-step.model$bestTune$nvmax
 
 coef(step.model$finalModel, bestnv)
+
+step.model$results$RMSE[bestnv]
+step.model$results$Rsquared[bestnv]
+
+train.contol <-trainControl(method = "repeatedcv", number = 5)
+method =  "leapSeq"       
+
+step.model <- train(PerCroplandGain~. , data = train.reg,
+                    method = method, 
+                    tuneGrid = data.frame(nvmax = 1:5)
+                 )
+
+
+methods <- 'forward'  
+methodClean<-function(methods){
+if (input$stepChoice  == 'forward')
+{return("leapForward")}
+  
+if(input$stepChoice  == 'backward')
+{return("leapBackward")}
+  
+if(input$stepChoice == "both")
+  {return("leapSeq")}
+}
+
+		
+

@@ -59,6 +59,11 @@ index <- createDataPartition(mergedData$PerCroplandGain,
 train.tree <- mergedData[ index,]
 test.tree  <- mergedData[-index,]
 
+train.tree$PerCroplandLoss<-NULL
+test.tree$PerCroplandLoss<-NULL
+
+train.tree<-train.tree[5:47]
+test.tree<-test.tree[5:47]
 #remove all non important data for tree and forests models
 trimmedData<-mergedData[5:47]
 trimmedData$PerCroplandLoss<-NULL
@@ -70,6 +75,8 @@ trimmedData[is.na(trimmedData)]<-0
 train.reg <- train.tree[3:42]
 test.reg <- test.tree[3:42]
 
+train.reg$PerCroplandLoss<-NULL
+test.reg$PerCroplandLoss<-NULL
 
 
 ###############################################################################
@@ -87,7 +94,7 @@ server <- function(input,output, session){
     selectClass<-input$SB
   })  
   output$mymap <- renderLeaflet({
-      pal <- colorNumeric(palette = "Reds", domain = dataMap$totMarkSlope, na.color = NA)
+      pal <- colorNumeric(palette = "Reds", domain = dataMap$Adens_Slope, na.color = NA)
       dataMap %>%
       leaflet(width = "100%") %>% # Interactive mapping package
       addProviderTiles(provider = "CartoDB.Positron") %>% # Changes base map
@@ -97,11 +104,12 @@ server <- function(input,output, session){
                   stroke = FALSE,
                   smoothFactor = 0,
                   fillOpacity = 0.7,
-                  color = ~ pal(totMarkSlope)) %>%
+                  color = ~ pal(Adens_Slope)) %>%
       addLegend("bottomright", 
                   pal = pal, 
                   values = ~ totMarkSlope,
-                  title = "Total Market Rate of Change",
+                  title = "Animal Stocking Density:",
+                  "Rate of Change",
                             opacity = 1) %>% # Creates legend
       addControl(MapInfo, position = "topright")
 
@@ -168,7 +176,7 @@ output$tree.Fit.Stats <- renderPrint({
   trainRegTreeModel()$fitStats
 })
 
-trainRFModel <- eventReactive(input$runForestRun, {
+trainRFModel <- eventReactive(input$runForest, {
   
   # Create a Progress object
   progress <- Progress$new()
@@ -185,14 +193,15 @@ trainRFModel <- eventReactive(input$runForestRun, {
   
   # Fit a Random Forest Model using cross validation
   train.control <- trainControl(method = "cv", number = input$numFolds)
+  mtry=as.numeric(input$mtry)
   rfFit <- train(PerCroplandGain ~ ., 
                  data = train.tree[,c(c("PerCroplandGain"), vars)],
                  method = 'rf',
-                 metric = "Accuracy",
                  # Needed to retrieve variable importance 
-                 importance = "permutation",
-                 trControl = train.Control,
-                 tuneGrid = expand.grid(mtry = input$mtry))
+                 importance = TRUE,
+                 trControl = train.control, 
+                 na.action = na.exclude)
+                 
                  
                  
                  # Save the fitted model in a folder.
@@ -222,18 +231,64 @@ trainRFModel <- eventReactive(input$runForestRun, {
 })
   
   output$forestTitle <- renderUI({
-    trainForestModel()
+    trainRFModel()
     h5(strong("Model training is complete."))
   })
   
-  output$summaryForest <- renderPlot({
+  output$summary.RF <- renderPlot({
     trainRFModel()$summary
   })
   
-  output$forestFitStats <- renderPrint({
+  output$RFFitStats <- renderPrint({
     trainRFModel()$fitStats
   })
+
+  trainStepwiseModel <- eventReactive(input$stepRun, {
+    
+    # Create a Progress object
+    progress <- Progress$new()
+    # Ensure the Progress object closes upon exiting this reactive, even if
+    # there is an error.
+    on.exit(progress$close())
+    # Set the message to the user while cross-validation is running.
+    progress$set(message = "Calculation in progress",
+                 detail = "This should be a short one...")
+    
+    # Grab the predictor variables to be used in the model from the user input
+    vars <- unlist(input$regVars)
+    
+    # Fit a stepwise Regression Model
+
+    step.model <- lm(PerCroplandGain~. , 
+                        data = train.reg[,c(c("PerCroplandGain"), vars)],
+                        ) 
+    
+    saveRDS(step.model, "./Models/step-model.rds")
+    
+    regSummary <- summary(step.model)
+    
+    reg.yhat <- predict(step.model, newdata = test.reg)
+    reg.Fit.Stats <- mean((reg.yhat-test.reg$PerCroplandGain)^2)
+    
+    list(summary = regSummary, fitStats = reg.Fit.Stats)
+  })
   
+  output$stepTitle <- renderUI({
+    trainStepwiseModel()
+    h5(strong("Model training is complete."))
+  })
+  
+  output$summaryStep <- renderPrint({
+    trainStepwiseModel()$summary
+  })
+  
+  output$stepFitStats <- renderPrint({
+    trainStepwiseModel()$fitStats
+  })
+  
+  
+  
+
 ###############################################################################
 #
 #  Active Prediction Variable

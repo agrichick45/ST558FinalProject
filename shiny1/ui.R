@@ -161,7 +161,7 @@ conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
                  ),
                  checkboxGroupInput("regTreeVars", 
                                     label = "Check at Least 5 Parameters for Entry in Regression Model",
-                                    choices = names(train.tree)[-c(1:2, 10)]
+                                    choices = names(train.tree)[-c(1:3)]
                  ),
                  h3("Select Cross Validation Fit Options"),
                  "A Stratified Training Sample Set of 80% was prepared:",
@@ -182,7 +182,7 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                  ),
                  checkboxGroupInput("rfVars", 
                                     label = "Select at Least 5 Variables for Random Forests",
-                                    choices = names(train.data)[-c(1:2)]
+                                    choices = names(train.tree)[-c(1:3)]
                  ),
                  h3("Select Tree Fit Options"
                  ),
@@ -194,26 +194,27 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                              label = "Minimum of 2 Folds, Maximum of 10:",
                              min = 2, max = 10, value = 5
                  ),
-                 actionButton("runForestRun", label = "Generate Model")
+                 actionButton("runForest", label = "Generate Model")
 ),
   
 
 ###############################################################################
 #
-# Stepwise Backwards Regression Model
+# Stepwise Regression Model
 #
 ###############################################################################
-            conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
+          conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
                  h3("Select Parameters for Fit",
                  ),
-                 selectInput("stepChoice", 
-                                    label = "Select at Least 5 Variables for Random Forests",
-                                    choices = c("forward", "backward", "both")
-                 ),
-                 actionButton("stepChoice", label = "Generate Model")
-                
-                ),
-                ),
+                 checkboxGroupInput("stepVars", 
+                                    label = "Select at Least 5 Variables for Stepwise Regression",
+                                    choices = names(train.reg)[-c(1:3)]),
+  
+                 
+                 actionButton("stepRun", label = "Generate Model")
+                 
+),
+      ),
 
 ###############################################################################
 #
@@ -231,7 +232,7 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                   verbatimTextOutput("tree.Fit.Stats")
                 ),
                 conditionalPanel(condition = "input.modelType == 'Random Forest'",
-                                 htmlOutput("randomForestTitle"),
+                                 htmlOutput("forestTitle"),
                                  h4("Random Forest Model Fit Summary:"),
                                  plotOutput("summary.RF"),
                                  br(),
@@ -239,14 +240,14 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                                  verbatimTextOutput("RFFitStats")
                 ),
                 conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
-                   htmlOutput("stepTitle"),
-                   h4("Stepwise Model Fit Summary:"),
-                   plotOutput("summaryStep"),
-                   br(),
-                   h4("Test Model Fit Statistics:"),
-                   verbatimTextOutput("stepFitStats")
-                    )
-                  ))
+                                 htmlOutput("stepTitle"),
+                                 h4("Stepwise Model Fit Summary:"),
+                                 plotOutput("summaryStep"),
+                                 br(),
+                                 h4("Test Model Fit Statistics:"),
+                                 verbatimTextOutput("stepFitStats")
+                )
+            ))
         ),
 
 ###############################################################################

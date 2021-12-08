@@ -164,4 +164,25 @@ if(input$stepChoice == "both")
 }
 
 		
+```
+
+
+```{r}
+train.control<-trainControl(method = "cv", number = 5)
+    Boost.model <- gbm(PerCroplandGain~. , 
+                        data = train.boost,
+                        distribution = "gaussian", 
+                        n.trees= 1500, 
+                        interaction.depth = 4)
+train.control<-trainControl(method = "cv", number = 5)
+    Boost.model <- train(PerCroplandGain~. , 
+                        data = train.boost,
+                        method = "gbm",
+                        na.action = na.exclude) 
+    
+summary(Boost.model)
+    saveRDS(Boost.model, "./Models/boosted-tree.rds")
+    import <- varImp(Boost.model)
+    importPlot <- as_tibble(import$importance, rownames = "var")
+    importance <- importPlot %>% arrange(desc(Overall))
 

@@ -1,5 +1,45 @@
 ###############################################################################
 #
+# This is the Server R script mapping agricultural intensification in the Midwest
+#
+# Author:  Mandy Liesch
+# Email:  amliesch@ncsu.edu
+#
+###############################################################################
+
+library(leaps)
+library(dplyr)
+library(shiny)
+library(shinyWidgets)
+library(shinythemes)
+library(mapdeck)
+library(markdown)
+library(ggplot2)
+library(rjson)
+library(jsonlite)
+library(leaflet)
+library(RCurl)
+library(rgeos)
+library(maptools)
+library(leaflet)
+library(htmltools)
+library(shiny)
+library(plotly)
+library(shiny)
+library(tidyverse)
+library(caret)
+library(rsample)
+library(rpart)	
+library(rpart.plot)
+library(png)
+library(summarytools)
+library(rattle)
+library(gbm)
+
+
+
+###############################################################################
+#
 # Process and setup the environment.
 #
 ###############################################################################
@@ -45,40 +85,19 @@ fig <- plot_ly(
 # Get the location and name of the image for the About tab.
 image1997 <- paste0("agIntenInt.png")
 rateOfChange <- paste0("agIntenSlope.png")
-###############################################################################
-#
-# Create the Testing and Training Dataset
-#
-###############################################################################
 
-
+mergedData$PerCroplandLoss<-NULL
+mergedData<-mergedData[5:47]
+mergedData[is.null(mergedData)]<-0
 index <- createDataPartition(mergedData$PerCroplandGain,
-                                  p = 0.8, 
-                                  list = FALSE, 
-                                  times = 1)
+                             p = 0.8, 
+                             list = FALSE, 
+                             times = 1)
 train.tree <- mergedData[ index,]
 test.tree  <- mergedData[-index,]
 
-train.tree$PerCroplandLoss<-NULL
-test.tree$PerCroplandLoss<-NULL
-
-train.tree<-train.tree[5:47]
-test.tree<-test.tree[5:47]
-#remove all non important data for tree and forests models
-trimmedData<-mergedData[5:47]
-trimmedData$PerCroplandLoss<-NULL
-trimmedData[is.na(trimmedData)]<-0
-
-
-
-#Create a subset of training for the regression models
-train.reg <- train.tree[3:42]
-test.reg <- test.tree[3:42]
-
-train.reg$PerCroplandLoss<-NULL
-test.reg$PerCroplandLoss<-NULL
-
-
+train.boost<- train.tree[3:43]
+test.boost<- test.tree[3:43]
 ###############################################################################
 #
 # Server Shiny Backend Function
@@ -139,6 +158,7 @@ trainRegTreeModel <- eventReactive(input$runRegTree, {
   # Grab the predictor variables to be used in the model from the user input
   vars <- unlist(input$regTreeVars)
   
+  
   # Fit a Classification Tree Model using cross validation
   train.control <- trainControl(method = "cv", number = input$numFolds)
   tree.Fit <- train(PerCroplandGain ~ .,
@@ -153,7 +173,8 @@ trainRegTreeModel <- eventReactive(input$runRegTree, {
   saveRDS(tree.Fit, "./Models/reg-tree-model.rds")
   
   # Output a plot of the Regression Tree
-  tree.Summary <- "rattle::fancyRpartPlot(tree.Fit$finalModel)" 
+  tree.Summary <- "./Models/reg-tree-model.rds;
+  rattle::fancyRpartPlot(tree.Fit$finalModel)" 
                   
   
   tree.yhat <- predict(tree.Fit, newdata = test.tree)
@@ -169,7 +190,7 @@ output$treeTitle <- renderUI({
 })
 
 output$summary.Tree <- renderPlot({
-  eval(parse(text=trainRegTreeModel()$summary))
+  fancyRpartPlot(tree.Fit$finalModel)
 })
 
 output$tree.Fit.Stats <- renderPrint({
@@ -190,10 +211,8 @@ trainRFModel <- eventReactive(input$runForest, {
   # Grab the predictor variables to be used in the model from the user input
   vars <- unlist(input$rfVars)
   
-  
   # Fit a Random Forest Model using cross validation
   train.control <- trainControl(method = "cv", number = input$numFolds)
-  mtry=as.numeric(input$mtry)
   rfFit <- train(PerCroplandGain ~ ., 
                  data = train.tree[,c(c("PerCroplandGain"), vars)],
                  method = 'rf',
@@ -243,7 +262,7 @@ trainRFModel <- eventReactive(input$runForest, {
     trainRFModel()$fitStats
   })
 
-  trainStepwiseModel <- eventReactive(input$stepRun, {
+  trainBoostedModel <- eventReactive(input$boostRun, {
     
     # Create a Progress object
     progress <- Progress$new()
@@ -255,35 +274,50 @@ trainRFModel <- eventReactive(input$runForest, {
                  detail = "This should be a short one...")
     
     # Grab the predictor variables to be used in the model from the user input
-    vars <- unlist(input$regVars)
+    vars <- unlist(input$bagVars)
     
-    # Fit a stepwise Regression Model
 
-    step.model <- lm(PerCroplandGain~. , 
-                        data = train.reg[,c(c("PerCroplandGain"), vars)],
-                        ) 
+    # Fit a stepwise Regression Model
+    Boost.model <- train(PerCroplandGain~. , 
+                        data = train.boost[,c(c("PerCroplandGain"), vars)],
+                        method = "gbm",
+                        na.action = na.exclude) 
     
-    saveRDS(step.model, "./Models/step-model.rds")
+    saveRDS(Boost.model, "./Models/boosted-tree.rds")
     
-    regSummary <- summary(step.model)
+    output<-summary(Boost.model)
     
-    reg.yhat <- predict(step.model, newdata = test.reg)
-    reg.Fit.Stats <- mean((reg.yhat-test.reg$PerCroplandGain)^2)
+    importance <- output %>% arrange(desc(rel.inf))
     
-    list(summary = regSummary, fitStats = reg.Fit.Stats)
+    boostImpPlot <- ggplot(importance[1:6,],
+                        aes(x = var, 
+                            y = rel.inf, fill = rel.inf)) +
+      geom_col() +
+      coord_flip() +
+      theme(legend.position = "none") +
+      labs(x = "Variables",  
+           y = "Boosted Importance", 
+           title ="Importance of Top 10 Variables")
+    
+    
+    boost.yhat <- predict(Boost.model, newdata = test.boost)
+    boost.Fit.Stats <- mean((boost.yhat-test.boost$PerCroplandGain)^2)
+    
+    list(summary = boostImpPlot, fitStats = boost.Fit.Stats)
+    
   })
   
-  output$stepTitle <- renderUI({
-    trainStepwiseModel()
+  output$BoostTitle <- renderUI({
+    trainBoostedModel()
     h5(strong("Model training is complete."))
   })
   
-  output$summaryStep <- renderPrint({
-    trainStepwiseModel()$summary
+  output$summaryBoost <- renderPrint({
+    trainBoostedModel()$summary
   })
   
-  output$stepFitStats <- renderPrint({
-    trainStepwiseModel()$fitStats
+  output$boostFitStats <- renderPrint({
+    trainBoostedModel()$fitStats
   })
   
   

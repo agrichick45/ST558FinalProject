@@ -6,7 +6,7 @@
 # Email:  amliesch@ncsu.edu
 #
 ###############################################################################
-
+library(leaps)
 library(dplyr)
 library(shiny)
 library(shinyWidgets)
@@ -33,13 +33,16 @@ library(rpart.plot)
 library(png)
 library(summarytools)
 library(rattle)
-
+library(gbm)
 
 ###############################################################################
 #
 # Start of Shiny UI
 #
 ###############################################################################
+mergedData <- readRDS("./data/mergedData.rds")
+agIntenSlope<-readRDS("./data/agIntenSlope.rds")
+
 
 shinyUI(navbarPage(
 
@@ -59,7 +62,8 @@ shinyUI(navbarPage(
       # Add a title.
       title="About",
       # Create a main panel for the About tab.
-      mainPanel("This is the About Tab",
+      mainPanel( 
+        includeMarkdown("about.md"),
       ),
     ),
 ###############################################################################
@@ -146,7 +150,7 @@ shinyUI(navbarPage(
                      label = "Choose a Model:", 
                      choices = c("Single Regression Tree",
                                  "Random Forest",
-                                 "Stepwise Selection Regression"
+                                 "Boosting Regression"
                                  ), 
                      selected = character(0)
         ),
@@ -186,10 +190,7 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                  ),
                  h3("Select Tree Fit Options"
                  ),
-                 sliderInput("mtry", 
-                             label = "Choose the default number of trees:",
-                             min = 2, max = 15, value = 5
-                 ),
+
                  sliderInput("numFolds", 
                              label = "Minimum of 2 Folds, Maximum of 10:",
                              min = 2, max = 10, value = 5
@@ -200,18 +201,22 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
 
 ###############################################################################
 #
-# Stepwise Regression Model
+# Boosting Model
 #
 ###############################################################################
-          conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
+          conditionalPanel(condition = "input.modelType == 'Boosting Regression'",
                  h3("Select Parameters for Fit",
                  ),
-                 checkboxGroupInput("stepVars", 
-                                    label = "Select at Least 5 Variables for Stepwise Regression",
-                                    choices = names(train.reg)[-c(1:3)]),
+                 checkboxGroupInput("bagVars", 
+                                    label = "Select at Least 5 Variables for Boosting",
+                                    choices = names(train.tree)[-c(1:3)]),
   
+                 sliderInput("numFolds", 
+                             label = "Minimum of 2 Folds, Maximum of 10:",
+                             min = 2, max = 10, value = 5
+                 ),
                  
-                 actionButton("stepRun", label = "Generate Model")
+                 actionButton("boostRun", label = "Generate Model")
                  
 ),
       ),
@@ -239,13 +244,13 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                                  h4("Test Model Fit Statistics:"),
                                  verbatimTextOutput("RFFitStats")
                 ),
-                conditionalPanel(condition = "input.modelType == 'Stepwise Selection Regression'",
-                                 htmlOutput("stepTitle"),
-                                 h4("Stepwise Model Fit Summary:"),
-                                 plotOutput("summaryStep"),
+                conditionalPanel(condition = "input.modelType == 'Boosting Regression'",
+                                 htmlOutput("BoostTitle"),
+                                 h4("Boosting Regression:"),
+                                 plotOutput("summaryBoost"),
                                  br(),
                                  h4("Test Model Fit Statistics:"),
-                                 verbatimTextOutput("stepFitStats")
+                                 verbatimTextOutput("boostFitStats")
                 )
             ))
         ),
@@ -264,41 +269,13 @@ tabPanel(
                  label = "Choose Model:", 
                  choices = c("Single Regression Tree",
                              "Random Forest",
-                             "Stepwise Selection Regression"), 
+                             "Boosted Regression Tree"), 
                  selected = character(0)
     ),
   ),
   mainPanel(fluidPage(
     
-    conditionalPanel(condition = "input.predictionModel == 'Single Regression Tree'",
-                     h4(strong("The Regression Tree Model tries to predict the Cropland Increase")
-                     ),
-                     htmlOutput("treeRegVariables"),
-                     br(),
-                     h4(strong("click the button below to get your prediction.")),
-                     actionButton("getTreePrediction", label = "Get Prediction"),
-                     htmlOutput("treePrediction")
-    ),
-    conditionalPanel(condition = "input.predictionModel == 'Random Forest'",
-                     h4(strong("The Random Forest Model predicts land use change "
-                     )),
-                     htmlOutput("forestPredVariables"),
-                     br(),
-                     h4(strong("click the button below to get your prediction.")
-                     ),
-                     actionButton("getRForestPrediction", label = "Get Prediction"),
-                     htmlOutput("RFPrediction")
-    ),
-    conditionalPanel(condition = "input.predictionModel == 'Stepwise Selection Regression'",
-                     h4(strong("The Stepwise Regression Model is used to predict land use change",
-                               "and intensity:")),
-                     htmlOutput("swVariables"),
-                     br(),
-                     h4(strong("click the button below to get your prediction.")
-                     ),
-                     actionButton("getStepPrediction", label = "Get Prediction"),
-                     htmlOutput("stepPrediction")
-    ),
+    
     
   ),
   ),

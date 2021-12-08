@@ -293,7 +293,7 @@ trainRFModel <- eventReactive(input$runForest, {
     boost.yhat <- predict(Boost.model, newdata = test.tree)
     boost.Fit.Stats <- mean((boost.yhat-test.tree$PerCroplandGain)^2)
     
-    list(summary = summBoost, fitStats = boost.Fit.Stats)
+    list(summary = importPlot, fitStats = boost.Fit.Stats)
     
   })
   

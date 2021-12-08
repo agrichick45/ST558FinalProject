@@ -89,7 +89,7 @@ shinyUI(navbarPage(
       sidebarLayout(
     #add the background data, and the web link
       sidebarPanel(
-        "This will be for value interaction and a scatter plot"
+        # Choose which categorical variable to map
 
       ),
       mainPanel(

@@ -267,44 +267,33 @@ trainRFModel <- eventReactive(input$runForest, {
   })
 
   trainBoostedModel <- eventReactive(input$boostRun, {
-    
     # Create a Progress object
     progress <- Progress$new()
     # Ensure the Progress object closes upon exiting this reactive, even if
     # there is an error.
     on.exit(progress$close())
     # Set the message to the user while cross-validation is running.
-    progress$set(message = "Calculation in progress",
-                 detail = "This should be a short one...")
-    
+    progress$set(message = "Also takes time",
+                 detail = "Find Chocolate?")
     # Grab the predictor variables to be used in the model from the user input
     vars <- unlist(input$bagVars)
     
 
     # Fit a stepwise Regression Model
     Boost.model <- gbm(PerCroplandGain~. , 
-                        data = train.boost[,c(c("PerCroplandGain"), vars)],
+                        data = train.tree[,c(c("PerCroplandGain"), vars)],
                         ) 
     
     saveRDS(Boost.model, "./Models/boosted-tree.rds")
+  
     
-    output<-summary(Boost.model)
-    importance <- output %>% arrange(desc(rel.inf))
+    summBoost<- summary(Boost.model)
+    importPlot <- as_tibble(summBoost)
+  
+    boost.yhat <- predict(Boost.model, newdata = test.tree)
+    boost.Fit.Stats <- mean((boost.yhat-test.tree$PerCroplandGain)^2)
     
-    boostImpPlot <- ggplot(importance[1:6,],
-                           aes(x = reorder(var), 
-                               y = var.inf, fill = var.inf)) +
-      geom_col() +
-      coord_flip() +
-      theme(legend.position = "none") +
-      labs(x = "Variables",  
-           y = "Boosted Importance", 
-           title ="Importance of Top 10 Variables")
-    
-    boost.yhat <- predict(Boost.model, newdata = test.boost)
-    boost.Fit.Stats <- mean((boost.yhat-test.boost$PerCroplandGain)^2)
-    
-    list(summary = boostImpPlot, fitStats = boost.Fit.Stats)
+    list(summary = summBoost, fitStats = boost.Fit.Stats)
     
   })
   
@@ -313,8 +302,8 @@ trainRFModel <- eventReactive(input$runForest, {
     h5(strong("Model training is complete."))
   })
   
-  output$summaryBoost <- renderPrint({
-    trainBoostedModel()$summary
+  output$summaryBoost <- renderTable({
+    eval(parse(text=trainBoostedModel()$summary))
   })
   
   output$boostFitStats <- renderPrint({

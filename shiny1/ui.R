@@ -231,7 +231,7 @@ conditionalPanel(condition = "input.modelType == 'Random Forest'",
                 conditionalPanel(condition = "input.modelType == 'Single Regression Tree'",
                   htmlOutput("regressTreeTitle"),
                   h4("Regression Tree Model Fit Summary:"),
-                  verbatimTextOutput("summary.Tree"),
+                  plotOutput("summary.Tree"),
                   br(),
                   h4("Test Model Fit Statistics:"),
                   verbatimTextOutput("tree.Fit.Stats")

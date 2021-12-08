@@ -35,7 +35,7 @@ library(png)
 library(summarytools)
 library(rattle)
 library(gbm)
-
+library(stringr)
 
 
 ###############################################################################
@@ -48,9 +48,12 @@ library(gbm)
 countyData<-readShapeSpatial("countyshape.shp")
 
 #Load the RDS Values for the shapefile and the larger set for models
-mergedData <- readRDS("./data/mergedData.rds")
+mergedData<-readRDS("./data/mergedData.rds")
 agIntenSlope<-readRDS("./data/agIntenSlope.rds")
 
+
+#train.boost<- train.tree[3:43]
+#test.boost<- test.tree[3:43]
 ###############################################################################
 #
 # Map and Leaflet Setup
@@ -86,8 +89,9 @@ fig <- plot_ly(
 image1997 <- paste0("agIntenInt.png")
 rateOfChange <- paste0("agIntenSlope.png")
 
+
 mergedData$PerCroplandLoss<-NULL
-mergedData<-mergedData[5:47]
+
 mergedData[is.null(mergedData)]<-0
 index <- createDataPartition(mergedData$PerCroplandGain,
                              p = 0.8, 
@@ -96,8 +100,7 @@ index <- createDataPartition(mergedData$PerCroplandGain,
 train.tree <- mergedData[ index,]
 test.tree  <- mergedData[-index,]
 
-train.boost<- train.tree[3:43]
-test.boost<- test.tree[3:43]
+
 ###############################################################################
 #
 # Server Shiny Backend Function
@@ -152,36 +155,37 @@ trainRegTreeModel <- eventReactive(input$runRegTree, {
   on.exit(progress$close())
   # Set the message to the user while cross-validation is running.
   progress$set(message = "Waiting for Results",
-               detail = "Pick a lower CV for faster results...")
+               detail = "Don't Sleep...")
   
   
   # Grab the predictor variables to be used in the model from the user input
   vars <- unlist(input$regTreeVars)
   
   
-  # Fit a Classification Tree Model using cross validation
+  # Fit a Tree Model using cross validation
   train.control <- trainControl(method = "cv", number = input$numFolds)
   tree.Fit <- train(PerCroplandGain ~ .,
                     data = train.tree[,c(c("PerCroplandGain"), vars)],
                     method = 'rpart',
                     trControl = train.control,
                     na.action = na.exclude)
-                    
-
   
   # Save the fitted model in a folder.
   saveRDS(tree.Fit, "./Models/reg-tree-model.rds")
+                  
+  tree.Plot<- "tree.Fit <- readRDS('./Models/reg-tree-model.rds'); 
+                    rattle::fancyRpartPlot(tree.Fit$finalModel)"
+  
+  
   
   # Output a plot of the Regression Tree
-  tree.Summary <- "./Models/reg-tree-model.rds;
-  rattle::fancyRpartPlot(tree.Fit$finalModel)" 
-                  
+  
   
   tree.yhat <- predict(tree.Fit, newdata = test.tree)
   tree.Fit.Stats <- mean((tree.yhat-test.tree$PerCroplandGain)^2)
   
   # Return all objects as a list
-  list(summary = tree.Summary, fitStats = tree.Fit.Stats)
+  list(summary = tree.Plot, fitStats = tree.Fit.Stats)
 })
 
 output$treeTitle <- renderUI({
@@ -190,7 +194,7 @@ output$treeTitle <- renderUI({
 })
 
 output$summary.Tree <- renderPlot({
-  fancyRpartPlot(tree.Fit$finalModel)
+  eval(parse(text=trainRegTreeModel()$summary))
 })
 
 output$tree.Fit.Stats <- renderPrint({
@@ -278,27 +282,24 @@ trainRFModel <- eventReactive(input$runForest, {
     
 
     # Fit a stepwise Regression Model
-    Boost.model <- train(PerCroplandGain~. , 
+    Boost.model <- gbm(PerCroplandGain~. , 
                         data = train.boost[,c(c("PerCroplandGain"), vars)],
-                        method = "gbm",
-                        na.action = na.exclude) 
+                        ) 
     
     saveRDS(Boost.model, "./Models/boosted-tree.rds")
     
     output<-summary(Boost.model)
-    
     importance <- output %>% arrange(desc(rel.inf))
     
     boostImpPlot <- ggplot(importance[1:6,],
-                        aes(x = var, 
-                            y = rel.inf, fill = rel.inf)) +
+                           aes(x = reorder(var), 
+                               y = var.inf, fill = var.inf)) +
       geom_col() +
       coord_flip() +
       theme(legend.position = "none") +
       labs(x = "Variables",  
            y = "Boosted Importance", 
            title ="Importance of Top 10 Variables")
-    
     
     boost.yhat <- predict(Boost.model, newdata = test.boost)
     boost.Fit.Stats <- mean((boost.yhat-test.boost$PerCroplandGain)^2)

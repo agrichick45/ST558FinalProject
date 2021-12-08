@@ -89,24 +89,20 @@ shinyUI(navbarPage(
       sidebarLayout(
     #add the background data, and the web link
       sidebarPanel(
-        # Choose which categorical variable to map
+        selectInput('x', 'X', choices = c(varsX),
+                      selected = "Adens_Slope"),
+        selectInput('y', 'Y', choices = c(varsY), 
+                      selected = "Megacluster"),
+        selectInput('z', 'Z', choices = c(varsZ), 
+                      selected = "Megacluster"),
 
-      ),
+        ),
+    
       mainPanel(
       plotlyOutput("heatmap", width = "100%", height="600px"),
-      
-      # Use the top portion for visualization.
-      h3("Visualization"),
-      # Use user input to determine which plot to show.
-      conditionalPanel(
-        condition = "input.plotType == 'histogram'",
-        plotlyOutput("histogram")
-      ),                     
-      conditionalPanel(
-        condition = "input.plotType == 'scatterPlot'",
-        plotlyOutput("scatter")
+      plotOutput("outplot")
       ),
-    ))
+      ),
     ),
 
 ###############################################################################
@@ -274,7 +270,7 @@ tabPanel(
     ),
   ),
   mainPanel(fluidPage(
-    
+    "This exists"
     
     
   ),

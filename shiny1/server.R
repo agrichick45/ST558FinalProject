@@ -36,6 +36,7 @@ library(summarytools)
 library(rattle)
 library(gbm)
 library(stringr)
+library(ggridges)
 
 
 ###############################################################################
@@ -51,7 +52,8 @@ countyData<-readShapeSpatial("countyshape.shp")
 mergedData<-readRDS("./data/mergedData.rds")
 agIntenSlope<-readRDS("./data/agIntenSlope.rds")
 
-
+plotDataset<-mergedData
+plotDataset$NCHS_URCS_2013<-as.character(mergedData$NCHS_URCS_2013)
 #train.boost<- train.tree[3:43]
 #test.boost<- test.tree[3:43]
 ###############################################################################
@@ -84,6 +86,12 @@ fig <- plot_ly(
   x = c(colnames(cmat)), y = c(row.names(cmat)),
   z = cmat, type = "heatmap"
 )
+###############################################################################
+#
+#  Training and Testing Dataset
+#
+###############################################################################
+
 
 # Get the location and name of the image for the About tab.
 image1997 <- paste0("agIntenInt.png")
@@ -101,12 +109,14 @@ train.tree <- mergedData[ index,]
 test.tree  <- mergedData[-index,]
 
 
+
+
+
 ###############################################################################
 #
 # Server Shiny Backend Function
 #
 ###############################################################################
-
 
 
 server <- function(input,output, session){
@@ -140,12 +150,32 @@ server <- function(input,output, session){
     
     ## server.R
     output$heatmap <- renderPlotly({plot_ly(x = c(colnames(cmat)), y = c(row.names(cmat)), z = cmat, colors = "Reds", type = "heatmap")})
+
+###############################################################################
+#
+#  Interactive ggPlot functions 
+#
+###############################################################################
+    data(plotDataset)
+    
+    varsX<-names(plotDataset[7:48])
+    varsY<-names(plotDataset[4:6])
+    varsZ<-c(names(plotDataset[5:6]), "NULL")
+
+    output$outplot <- renderPlot({
+      ggplot(plotDataset, aes_string(x = input$x, y= input$y, fill=input$z)) +
+        geom_density_ridges(alpha = 3/10) +
+        theme_ridges() + 
+        theme(legend.position = "right")
+    })
     
 ###############################################################################
 #
 #  Regression Tree 
 #
 ###############################################################################
+ 
+
 
 trainRegTreeModel <- eventReactive(input$runRegTree, {
   # Create a Progress object
